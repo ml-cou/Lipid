@@ -4,6 +4,8 @@ import os
 from django.shortcuts import render
 import pandas as pd
 import torch
+from django.template.context_processors import csrf
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
@@ -19,10 +21,13 @@ import matplotlib.pyplot as plt
 from django.http import JsonResponse
 from io import BytesIO
 import base64
+
+from .static.gnn_molecule_edge_only import edge_pred
+
 plt.switch_backend('agg')
 
 @api_view(['GET','POST'])
-
+@csrf_exempt
 # Create your views here.
 def prediction(req):
     data=json.loads(req.body)
@@ -150,25 +155,52 @@ def prediction(req):
         return mae, rmse, r2, y_real, y_pred
 
     # Training loop and evaluation
+    train_losses = []
     train_r2_scores = []
+    test_losses = []
     test_r2_scores = []
 
     for epoch in range(200):
         train_loss, train_r2 = train()
-        mae, rmse, test_r2, _, _ = test(test_loader)
-        train_r2_scores.append(train_r2)
-        test_r2_scores.append(test_r2)
-        print(
-            f'Epoch: {epoch}, Train Loss: {train_loss:.4f}, Train R²: {train_r2:.4f}, Test MAE: {mae:.4f}, Test RMSE: {rmse:.4f}, Test R²: {test_r2:.4f}')
+        test_loss, test_r2, mae, rmse, _ = test(test_loader)
 
-    # Plot R² scores
-    plt.figure(figsize=(12, 6))
-    plt.plot(train_r2_scores, label='Train R²')
-    plt.plot(test_r2_scores, label='Test R²')
+        train_losses.append(train_loss)
+        train_r2_scores.append(train_r2)
+        test_losses.append(test_loss)
+        test_r2_scores.append(test_r2)
+
+        print(f'Epoch: {epoch}, Train Loss: {train_loss:.4f}, Train R²: {train_r2:.4f}, Test Loss: {test_loss:.4f}, Test R²: {test_r2:.4f}')
+
+    # Plotting loss and R² scores
+    plt.figure(figsize=(15, 5))
+
+    # Plotting training and test loss
+    plt.subplot(1, 2, 1)
+    plt.plot(train_losses, label='Train Loss')
+    plt.plot(test_losses, label='Test Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training and Test Loss per Epoch')
+    plt.legend()
+
+    # Plotting R² score
+    plt.subplot(1, 2, 2)
+    plt.plot(train_r2_scores, label='Train R² Score')
+    plt.plot(test_r2_scores, label='Test R² Score')
     plt.xlabel('Epoch')
     plt.ylabel('R² Score')
-    plt.title('Train and Test R² Scores Over Epochs')
+    plt.title('R² Score per Epoch')
     plt.legend()
+    plt.tight_layout()
+    # plt.show()
+    # # Plot R² scores
+    # plt.figure(figsize=(12, 6))
+    # plt.plot(train_r2_scores, label='Train R²')
+    # plt.plot(test_r2_scores, label='Test R²')
+    # plt.xlabel('Epoch')
+    # plt.ylabel('R² Score')
+    # plt.title('Train and Test R² Scores Over Epochs')
+    # plt.legend()
     # Save the plot in memory
     buffer = BytesIO()
     plt.savefig(buffer, format='png')
@@ -201,9 +233,7 @@ def prediction(req):
 
         if filtered_df.empty:
             return f"No data found for lipid: {lipid_name}"
-
         lipid_data = filtered_df.iloc[0]
-
         # Clean the node_features and edge data
         node_features = clean_tuples(ast.literal_eval(lipid_data['node_features']))
         edge = clean_tuples(ast.literal_eval(lipid_data['edge']))
@@ -222,9 +252,6 @@ def prediction(req):
     current_directory = os.path.dirname(__file__)
     file_path = os.path.join(current_directory, 'moleculesEDited.csv')
     df = pd.read_csv(file_path)
-    print (df)
-    print("fjsjfls")
-    print(df.keys())
     pressed = int(data.get('issingle'))
     prediction_value=None
     if pressed == 2:
@@ -261,3 +288,9 @@ def prediction(req):
         # print("individual prediction for ", lipid_name, predictions)
     return JsonResponse({'graph': plot_data,
                             'pred': prediction_value})
+
+@api_view(['GET','POST'])
+def pred_edge(req):
+    data = json.loads(req.body)
+    print(data)
+    return edge_pred(data.get("mol_name"))
