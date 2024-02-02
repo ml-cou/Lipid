@@ -38,9 +38,9 @@ def predict_value(data,df):
     # Standardizing numerical features
     scaler = StandardScaler()
     numerical_features = df[
-        ['N_lipids/layer', 'N_water', 'Lz_0, nm', 'Performance, us/day', 'Lx_mean, nm', 'Lz_mean', 'Area/lipid, nm^2',
-         'L/lipid, nm', 'Memb_thickness', 'kappa, kT (q^-4)', 'Time_to_reach_kappa, ns', 'q0, nm-1', 't_decorr(q0), ns',
-         'Kappa  gamma_CU (direct)', 'Kappa  BW-DCF', 'kappa  binning, kT', 'Kappa gamma/binning', 'Kappa_rsf']]
+        ['N Lipids/Layer', 'N_water', 'Lz_0, nm', 'Performance, us/day', 'Lx_mean, nm', 'Lz_mean', 'Area/lipid, nm^2',
+         'L/lipid, nm', 'Memb_thickness', 'Time_to_reach_kappa, ns', 'q0, nm-1', 't_decorr(q0), ns',
+         'Kappa  gamma_CU (direct)', 'kappa  binning, kT', 'Kappa gamma/binning', 'Kappa_rsf']]
     numerical_features_scaled = scaler.fit_transform(numerical_features)
 
     # # Combining transformed features with original dataframe
@@ -149,7 +149,6 @@ def predict_value(data,df):
         r2 = r2_score(y_real, y_pred)
         return total_loss / len(train_loader), r2
 
-
     def test(loader):
         model.eval()
         y_real = []
@@ -164,6 +163,19 @@ def predict_value(data,df):
         r2 = r2_score(y_real, y_pred)
         return mae, rmse, r2, y_real, y_pred
 
+    # def test(loader):
+    #     model.eval()
+    #     actual = []
+    #     predicted = []
+    #     with torch.no_grad():
+    #         for data in loader:
+    #             output = model(data)
+    #             actual.extend(data.y.view(-1).tolist())
+    #             predicted.extend(output.view(-1).tolist())
+    #     mae = mean_absolute_error(actual, predicted)
+    #     rmse = np.sqrt(mean_squared_error(actual, predicted))
+    #     r2 = r2_score(actual, predicted)
+    #     return mae, rmse, r2, actual, predicted
 
     # Training loop and evaluation
     train_losses = []
@@ -179,52 +191,63 @@ def predict_value(data,df):
         train_r2_scores.append(train_r2)
         test_losses.append(test_loss)
         test_r2_scores.append(test_r2)
-
         print(
             f'Epoch: {epoch}, Train Loss: {train_loss:.4f}, Train R²: {train_r2:.4f}, Test Loss: {test_loss:.4f}, Test R²: {test_r2:.4f}')
 
+    mae, rmse, r2, actual_values, predicted_values = test(test_loader)
+    results_df = pd.DataFrame({
+        'Actual': actual_values,
+        'Predicted': predicted_values
+    })
+    loss_df=pd.DataFrame({
+        'Train Losses':train_losses,
+        'Test Losses': test_losses,
+    })
+    r2_df = pd.DataFrame({
+        'Train r2_scores': train_r2_scores,
+        'Test r2_scores': test_r2_scores
+    })
+    r2_df=r2_df.to_json(orient='records')
+    loss_df=loss_df.to_json(orient='records')
+    results_json = results_df.to_json(orient='records')  # Convert DataFrame to JSON
+
     # Plotting loss and R² scores
-    plt.figure(figsize=(15, 5))
+    plt.figure(figsize=(10, 5))
 
     # Plotting training and test loss
-    plt.subplot(1, 2, 1)
+    plt.subplot(1, 1, 1)
     plt.plot(train_losses, label='Train Loss')
     plt.plot(test_losses, label='Test Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.title('Training and Test Loss per Epoch')
     plt.legend()
+    # Save the first plot in memory
+    buffer1 = BytesIO()
+    plt.savefig(buffer1, format='png')
+    plt.close()
 
     # Plotting R² score
-    plt.subplot(1, 2, 2)
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 1, 1)
     plt.plot(train_r2_scores, label='Train R² Score')
     plt.plot(test_r2_scores, label='Test R² Score')
     plt.xlabel('Epoch')
     plt.ylabel('R² Score')
     plt.title('R² Score per Epoch')
     plt.legend()
-    plt.tight_layout()
-    # plt.show()
-    # # Plot R² scores
-    # plt.figure(figsize=(12, 6))
-    # plt.plot(train_r2_scores, label='Train R²')
-    # plt.plot(test_r2_scores, label='Test R²')
-    # plt.xlabel('Epoch')
-    # plt.ylabel('R² Score')
-    # plt.title('Train and Test R² Scores Over Epochs')
-    # plt.legend()
-    # Save the plot in memory
-    buffer = BytesIO()
-    plt.savefig(buffer, format='png')
+    # Save the second plot in memory
+    buffer2 = BytesIO()
+    plt.savefig(buffer2, format='png')
     plt.close()
-    # Encode the plot data to base64
-    plot_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
+    # Encode the plot data to base64
+    plot_data1 = base64.b64encode(buffer1.getvalue()).decode('utf-8')
+    plot_data2 = base64.b64encode(buffer2.getvalue()).decode('utf-8')
 
     # Function to process a new molecule
     def process_new_molecule(new_molecule, feature_encodings, max_length):
         return process_row(new_molecule, feature_encodings, max_length)
-
 
     # Function to predict for a new molecule
     def predict_new_molecule(new_molecule_data):
@@ -236,11 +259,9 @@ def predict_value(data,df):
                 predictions.append(output.view(-1).tolist())
         return predictions
 
-
     # Function to clean tuples by removing white spaces
     def clean_tuples(tuples_list):
         return [(item[0].strip(), item[1].strip()) for item in tuples_list]
-
 
     # Function to get molecule data for a given lipid
     def get_molecule_data(lipid_name):
@@ -265,9 +286,11 @@ def predict_value(data,df):
         }
         return molecule_data
 
-
+    # current_directory = os.path.dirname(__file__)
+    # file_path = os.path.join(current_directory, 'moleculesEDited.csv')
+    # df = pd.read_csv(file_path)
     current_directory = os.path.dirname(__file__)
-    file_path = os.path.join(current_directory, 'moleculesEDited.csv')
+    file_path = os.path.join(current_directory, '../../final_dataset.csv')
     df = pd.read_csv(file_path)
     pressed = int(data.get('issingle'))
     prediction_value = None
@@ -303,5 +326,12 @@ def predict_value(data,df):
         new_molecule_loader = DataLoader([processed_new_molecule], batch_size=1)
         prediction_value = predict_new_molecule(new_molecule_loader)
         # print("individual prediction for ", lipid_name, predictions)
-    return JsonResponse({'graph': plot_data,
-                         'pred': prediction_value})
+        print(prediction_value)
+    return JsonResponse({
+        'graph1': plot_data1,
+        'graph2': plot_data2,
+        'pred': prediction_value,
+        'actualvspred': results_json,
+        'loss_df':loss_df,
+        'r2_df':r2_df
+    })
