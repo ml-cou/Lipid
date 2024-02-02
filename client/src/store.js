@@ -1,8 +1,10 @@
 import { configureStore } from "@reduxjs/toolkit";
-import lipidReducer from "./Slices/LipidSlice";
+import EvaluationSlice from "./Slices/EvaluationSlice";
+import StructureAnalysisSlice from "./Slices/StructureAnalysisSlice";
 
 export const store = configureStore({
   reducer: {
-    lipid: lipidReducer,
+    structure: StructureAnalysisSlice,
+    evaluation: EvaluationSlice,
   },
 });

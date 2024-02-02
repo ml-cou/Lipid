@@ -2,14 +2,15 @@ import { AppBar, Dialog, IconButton, Toolbar, Typography } from "@mui/material";
 import React, { useState } from "react";
 
 import CloseIcon from "@mui/icons-material/Close";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import ChartComponent from "./ChartComponent";
 
-function ActualPredicted() {
-  const [open, setIsOpen] = useState(false);
-  const data = useSelector((state) => state.lipid.data);
-  const lipid = useSelector((state) => state.lipid.lipid);
+function ActualPredicted({open, setIsOpen}) {
+  const { data, lipid, showTable } = useSelector((state) => state.structure);
+  const dispatch = useDispatch();
+
   if (Object.keys(data).length == 0) return;
+
   let actual = undefined,
     predicted = undefined;
   if (data) {
@@ -20,16 +21,9 @@ function ActualPredicted() {
       predicted = data.predicted[lipid[0].name];
     }
   }
-  console.log({ actual, predicted });
 
   return (
-    <div className="absolute top-1.5 right-1 z-50">
-      <button
-        className="p-2 bg-violet-500 shadow px-3 rounded text-sm text-white"
-        onClick={() => setIsOpen(true)}
-      >
-        Actual vs Predicted
-      </button>
+    <div className="absolute top-1.5 right-1 z-50 flex items-center gap-4">
       <Dialog open={open} fullScreen onClose={() => setIsOpen(false)}>
         <AppBar sx={{ position: "relative" }} className="!bg-violet-500">
           <Toolbar>
