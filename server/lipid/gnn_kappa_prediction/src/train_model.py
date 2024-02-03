@@ -31,27 +31,30 @@ class GCNPredictor(torch.nn.Module):
         x = self.fc(x)
         return x.squeeze()  # Ensure output is 1D
 
+# Function to convert string representations to Python objects
+
+def safe_ast_literal_eval(s):
+    try:
+        return ast.literal_eval(s)
+    except ValueError:
+        return s
+
+# Function to encode string features as numerical values
+def encode_features(features, feature_map):
+    encoded_features = []
+    for feature in features:
+        encoded_feature = [feature_map.get(item, len(feature_map)) for item in feature]
+        feature_map.update({item: i for i, item in enumerate(feature_map, start=len(feature_map)) if item not in feature_map})
+        encoded_features.append(encoded_feature)
+    return encoded_features
 
 def train_model():
 # Load the dataset
     current_directory = os.path.dirname(__file__)
     file_path = os.path.join(current_directory, "../data/Final_Dataset_for_Model_Train.csv")
     data = pd.read_csv(file_path)
-    # Function to convert string representations to Python objects
-    def safe_ast_literal_eval(s):
-        try:
-            return ast.literal_eval(s)
-        except ValueError:
-            return s
 
-    # Function to encode string features as numerical values
-    def encode_features(features, feature_map):
-        encoded_features = []
-        for feature in features:
-            encoded_feature = [feature_map.get(item, len(feature_map)) for item in feature]
-            feature_map.update({item: i for i, item in enumerate(feature_map, start=len(feature_map)) if item not in feature_map})
-            encoded_features.append(encoded_feature)
-        return encoded_features
+
 
 
     standard_feature_size = 1  # Set this based on your data analysis
@@ -183,7 +186,8 @@ def train_model():
 
     # After your training loop
     # Assuming 'model' is your trained model instance
-    torch.save(model, os.path.join(current_directory, '../models/gcn_complete_model.pth'))
+
+    torch.save(model.state_dict(), os.path.join(current_directory, '../models/gcn_complete_model.pth'))
     # Assume feature_map and node_map are created during training
     loss_df = pd.DataFrame({
         'Train Losses': train_losses,
@@ -268,4 +272,3 @@ def train_model():
 
     return result_json
 
-# train_model()

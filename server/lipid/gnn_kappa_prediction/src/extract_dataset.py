@@ -41,7 +41,6 @@ def extract_dataset():
         df.at[index, 'Graph-Level Features'] = percentages
     current_directory = os.path.dirname(__file__)
     file_path = os.path.join(current_directory, '../data/Final_Dataset_for_Model_Train.csv')
-    print(df.tail())
     df.to_csv(file_path)
 
 def process_nodes(lipid_name):
