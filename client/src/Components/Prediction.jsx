@@ -1,3 +1,4 @@
+import { CircularProgress } from "@mui/material";
 import { Input, InputNumber, Radio, Space } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import React, { useState } from "react";
@@ -114,7 +115,16 @@ const BeadsBondsInput = ({
 
 function Prediction() {
   const [type, setType] = useState("single");
-  const [data, setData] = useState(initialDataState());
+  const [data, setData] = useState({
+    "Number of Water": 2915,
+    Salt: 0.15,
+    Temperature: 310,
+    Pressure: 1,
+    "Number of Lipid Per Layer": "",
+    "Membrane Thickness": "",
+    "Kappa BW DCF": "",
+    "Kappa RSF": "",
+  });
   const [compositions, setCompositions] = useState(initialCompositionState());
   const [adjacencyInputType, setAdjacencyInputType] = useState("upload");
   const [nodeFeatureInputType, setNodeFeatureInputType] = useState("upload");
@@ -169,8 +179,24 @@ function Prediction() {
   };
 
   const handleSubmit = async () => {
+    if (
+      (!adjacencyInput.file && !adjacencyInput.text) ||
+      (!nodeFeatureInput.file && !nodeFeatureInput.text) ||
+      !compositions.comp1.name ||
+      !data["Kappa BW DCF"] ||
+      !data["Kappa RSF"] ||
+      !data["Membrane Thickness"] ||
+      !data["Number of Lipid Per Layer"] ||
+      !data["Number of Water"] ||
+      !data["Pressure"] ||
+      !data["Salt"] ||
+      !data["Temperature"]
+    ) {
+      toast.error("Fill all the input fields");
+      return;
+    }
     const formData = new FormData();
-    setLoading(true);
+
     // Add file and text data
     if (adjacencyInput.file) {
       formData.append("adjacencyFile", adjacencyInput.file);
@@ -189,6 +215,7 @@ function Prediction() {
 
     // Send the request
     try {
+      setLoading(true);
       const response = await fetch("http://localhost:8000/test/", {
         method: "POST",
         body: formData,
@@ -200,11 +227,13 @@ function Prediction() {
 
       const result = await response.json();
       setPredictionValue(result.pred);
-      setLoading(false);
       // Handle result here
     } catch (error) {
-      console.error("There was a problem with the fetch operation:", error);
+      toast.error(
+        `There was a problem with the fetch operation: ${error.message}`
+      );
     }
+    setLoading(false);
   };
 
   return (
@@ -284,7 +313,11 @@ function Prediction() {
           className="bg-blue-500 p-2 px-6 shadow rounded tracking-wider text-white font-medium"
           onClick={handleSubmit}
         >
-          Predict
+          {loading ? (
+            <CircularProgress size={"25px"} className="!text-white" />
+          ) : (
+            "Predict"
+          )}
         </button>
       </div>
       {loading ? (
@@ -310,24 +343,6 @@ function Prediction() {
     </div>
   );
 }
-
-/**
- * Returns the initial state for the data fields in the Prediction component.
- * It initializes all fields with empty strings.
- *
- * @returns {Object} The initial data state object.
- */
-
-const initialDataState = () => ({
-  "Number of Water": 2915,
-  Salt: 0.15,
-  Temperature: 310,
-  Pressure: 1,
-  "Number of Lipid Per Layer": "",
-  "Membrane Thickness": "",
-  "Kappa BW DCF": "",
-  "Kappa RSF": "",
-});
 
 /**
  * Returns the initial state for the lipid compositions.
