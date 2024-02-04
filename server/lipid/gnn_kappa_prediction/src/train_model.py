@@ -31,15 +31,12 @@ class GCNPredictor(torch.nn.Module):
         x = self.fc(x)
         return x.squeeze()  # Ensure output is 1D
 
-# Function to convert string representations to Python objects
-
 def safe_ast_literal_eval(s):
     try:
         return ast.literal_eval(s)
     except ValueError:
         return s
 
-# Function to encode string features as numerical values
 def encode_features(features, feature_map):
     encoded_features = []
     for feature in features:
@@ -48,38 +45,42 @@ def encode_features(features, feature_map):
         encoded_features.append(encoded_feature)
     return encoded_features
 
+standard_feature_size = 1
+def process_node_features(features,feature_map):
+    numeric_features = []
+    for feature in features[1:]:  # Skip the first element which is node identifier
+        if isinstance(feature, str):
+            numeric_feature = feature_map.get(feature, len(feature_map))
+            feature_map[feature] = numeric_feature
+        else:
+            numeric_feature = feature
+        numeric_features.append(numeric_feature)
+
+    # Pad the feature vector if it's shorter than the standard size
+    if len(numeric_features) < standard_feature_size:
+        numeric_features += [0] * (standard_feature_size - len(numeric_features))
+
+    return numeric_features[:standard_feature_size]  # Ensure the feature vector is of standard size
+
 def train_model():
 # Load the dataset
     current_directory = os.path.dirname(__file__)
     file_path = os.path.join(current_directory, "../data/Final_Dataset_for_Model_Train.csv")
     data = pd.read_csv(file_path)
+    # Function to convert string representations to Python objects
+
+
+    # Function to encode string features as numerical values
 
 
 
+     # Set this based on your data analysis
 
-    standard_feature_size = 1  # Set this based on your data analysis
-
-    def process_node_features(features):
-        numeric_features = []
-        for feature in features[1:]:  # Skip the first element which is node identifier
-            if isinstance(feature, str):
-                numeric_feature = feature_map.get(feature, len(feature_map))
-                feature_map[feature] = numeric_feature
-            else:
-                numeric_feature = feature
-            numeric_features.append(numeric_feature)
-
-        # Pad the feature vector if it's shorter than the standard size
-        if len(numeric_features) < standard_feature_size:
-            numeric_features += [0] * (standard_feature_size - len(numeric_features))
-
-        return numeric_features[:standard_feature_size]  # Ensure the feature vector is of standard size
 
 
     feature_map = {}  # Dictionary to map strings to integers for node features
     node_map = {}     # Dictionary to map node identifiers to integers for edges
     unique_nodes = set()
-
 
     def get_unique_nodes(edge_list, node_features_list):
         unique_nodes = set()
@@ -89,19 +90,31 @@ def train_model():
             unique_nodes.update(feature)
         return list(unique_nodes)
 
+
+    other_columns = [
+        'N Lipids/Layer',
+        'N_water',
+        'Temperature (K)',
+        'Avg Membrane Thickness',
+        'Kappa (BW-DCF)',
+        'Kappa (RSF)']
+
     data_list = []
     for _, row in data.iterrows():
         # Convert string representations to Python objects
         node_features_list = safe_ast_literal_eval(row['Node Features'])
         edge_list = safe_ast_literal_eval(row['Edge List'])
+
         graph_features = safe_ast_literal_eval(row['Graph-Level Features'])
+
+        for r in other_columns:
+            graph_features.append(row[r])
 
         # Create a mapping for all unique nodes in both node features and edge list
         for edge in edge_list:
             unique_nodes.update(edge)
         for features in node_features_list:
             unique_nodes.add(features[0])  # Assuming first element of each feature list is the node identifier
-
 
         node_map = {node_id: i for i, node_id in enumerate(unique_nodes)}
 
@@ -115,17 +128,18 @@ def train_model():
             node_id = features[0]
             if node_id in node_map:
                 node_idx = node_map[node_id]
-                processed_features = process_node_features(features)
+                processed_features = process_node_features(features,feature_map)
                 node_features_tensor[node_idx] = torch.tensor(processed_features, dtype=torch.float)
 
         # Prepare edge index tensor
-        edge_index_tensor = torch.tensor([[node_map[node] for node in edge] for edge in edge_list], dtype=torch.long).t().contiguous()
+        edge_index_tensor = torch.tensor([[node_map[node] for node in edge] for edge in edge_list],
+                                         dtype=torch.long).t().contiguous()
 
         graph_features_tensor = torch.tensor(graph_features, dtype=torch.float)
 
         y = torch.tensor([row['Kappa (q^-4)']], dtype=torch.float)
-        data_list.append(Data(x=node_features_tensor, edge_index=edge_index_tensor, y=y, graph_features=graph_features_tensor))
-
+        data_list.append(
+            Data(x=node_features_tensor, edge_index=edge_index_tensor, y=y, graph_features=graph_features_tensor))
 
     # if 'D2B' not in node_map:
     #     print("'D2B' is not in the node_map. You might need to update your node_map or retrain the model.")
@@ -158,7 +172,7 @@ def train_model():
     val_losses = []
 
 
-    for epoch in range(700):
+    for epoch in range(3000):
         model.train()
         total_train_loss = 0.0
         for data in train_loader:
@@ -186,8 +200,7 @@ def train_model():
 
     # After your training loop
     # Assuming 'model' is your trained model instance
-
-    torch.save(model.state_dict(), os.path.join(current_directory, '../models/gcn_complete_model.pth'))
+    torch.save(model, os.path.join(current_directory, '../models/gcn_complete_model.pth'))
     # Assume feature_map and node_map are created during training
     loss_df = pd.DataFrame({
         'Train Losses': train_losses,
@@ -237,18 +250,20 @@ def train_model():
     actuals = np.array(actuals).flatten()  # Flatten in case the actuals are in a 2D array
 
     # Plotting
+
+
+    observations = np.arange(len(actuals))  # Create an array for the x-axis
+
     plt.figure(figsize=(10, 6))
-    plt.scatter(actuals, predictions, alpha=0.5)
-    plt.plot([actuals.min(), actuals.max()], [actuals.min(), actuals.max()], 'k--', lw=4)  # Diagonal line
-    plt.xlabel('Actual Values')
-    plt.ylabel('Predicted Values')
-    plt.title('Actual vs. Predicted Values')
-    plt.grid(True)
+    plt.scatter(observations, actuals, color='blue', alpha=0.5, label='Actual')
+    plt.scatter(observations, predictions, color='red', alpha=0.5, label='Predicted')
+    plt.xlabel('Observations')
+    plt.ylabel('Values')  # Replace with the name of the variable you are predicting
+    plt.title('Actual and Predicted Values')
+    plt.legend()
     plt.show()
 
     df_summary = pd.DataFrame({"Actual Values": actuals, "Predicted Values": predictions})
-
-
 
     buffer = BytesIO()
     plt.savefig(buffer, format='png')
@@ -271,4 +286,3 @@ def train_model():
     }
 
     return result_json
-
