@@ -187,6 +187,9 @@ def predict_model(request):
     kappa_BW_DCF=data["Kappa BW DCF"]
     kappa_RSF=data["Kappa RSF"]
 
+    graph_features_str.extend([n_lipids_layer,n_water,temperature_k,avg_membrane_thickness,kappa_BW_DCF,kappa_RSF])
+
+    print(graph_features_str)
 
     # from server.lipid.gnn_kappa_prediction.src.extract_dataset import process_nodes
     node_features_str,edge_list_str =process_nodes(comp_name)
