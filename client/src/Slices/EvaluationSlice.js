@@ -15,7 +15,7 @@ export const evaluateModel = createAsyncThunk(
         },
       });
       const data = await res.json();
-      console.log(data);
+
       return data;
       // return { data, mol_name };
     } catch (error) {
@@ -37,7 +37,6 @@ export const evaluation = createSlice({
     builder.addCase(evaluateModel.fulfilled, (state, { payload }) => {
       state.loading = false;
       state.data = payload;
-      console.log(payload);
     });
     builder.addCase(evaluateModel.rejected, (state) => {
       state.loading = false;
