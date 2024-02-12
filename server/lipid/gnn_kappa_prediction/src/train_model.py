@@ -170,7 +170,7 @@ def train_model():
     val_losses = []
 
 
-    for epoch in range(3000):
+    for epoch in range(700):
         model.train()
         total_train_loss = 0.0
         for data in train_loader:
@@ -238,7 +238,6 @@ def train_model():
     plt.ylabel('Loss')
     plt.legend()
     plt.title('Train vs Test Loss')
-    plt.show()
 
     buffer = BytesIO()
     plt.savefig(buffer, format='png')
@@ -260,7 +259,6 @@ def train_model():
     plt.ylabel('Values')  # Replace with the name of the variable you are predicting
     plt.title('Actual and Predicted Values')
     plt.legend()
-    plt.show()
 
     df_summary = pd.DataFrame({"Actual Values": actuals, "Predicted Values": predictions})
 
