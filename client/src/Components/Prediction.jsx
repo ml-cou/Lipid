@@ -24,41 +24,30 @@ function Prediction() {
     "Kappa BW-DCF(Bandwidth Dependent Die-electric Constant Fluctuation)": "",
     "Kappa-RSF": "",
   });
-  const [compositions, setCompositions] = useState(initialCompositionState());
+  const [compositions, setCompositions] = useState({
+    comp1: { name: "", percentage: 100 },
+    comp2: { name: "", percentage: 0 },
+  });
   const [predictionValue, setPredictionValue] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [inputs, setInputs] = useState([
-    {
+  const [inputs, setInputs] = useState(
+    new Array(4).fill(null).map((_, i) => ({
       inputType: "upload",
       file: null,
       text: "",
-      label: "Beads-Bonds Structure (Adjacency Matrix) for Lipid-1",
-    },
-    {
-      inputType: "upload",
-      file: null,
-      text: "",
-      label: "Beads Properties Structure (Node Feature Matrix) for Lipid-1",
-    },
-    {
-      inputType: "upload",
-      file: null,
-      text: "",
-      label: "Beads-Bonds Structure (Adjacency Matrix) for Lipid-2",
-    },
-    {
-      inputType: "upload",
-      file: null,
-      text: "",
-      label: "Beads Properties Structure (Node Feature Matrix) for Lipid-2",
-    },
-  ]);
+      label: `Beads-${i % 2 === 0 ? "Bonds" : "Properties"} Structure (${
+        i % 2 === 0 ? "Adjacency" : "Node Feature"
+      } Matrix) for Lipid-${Math.floor(i / 2) + 1}`,
+    }))
+  );
 
   const setInputsType = (index, newType) => {
     setInputs((prev) =>
       prev.map((item, i) =>
-        i === index ? { ...item, inputType: newType } : item
+        i === index
+          ? { ...item, inputType: newType, file: null, text: "" }
+          : item
       )
     );
   };
@@ -78,42 +67,25 @@ function Prediction() {
   const handleTypeChange = (newType) => {
     setType(newType);
     setCompositions(compositionStateOnTypeChange(newType));
-    setInputs([
-      {
+    setInputs((prev) => {
+      const temp = prev.map((val) => ({
+        ...val,
         inputType: "upload",
         file: null,
         text: "",
-        label: "Beads-Bonds Structure (Adjacency Matrix) for Lipid-1",
-      },
-      {
-        inputType: "upload",
-        file: null,
-        text: "",
-        label: "Beads Properties Structure (Node Feature Matrix) for Lipid-1",
-      },
-      {
-        inputType: "upload",
-        file: null,
-        text: "",
-        label: "Beads-Bonds Structure (Adjacency Matrix) for Lipid-2",
-      },
-      {
-        inputType: "upload",
-        file: null,
-        text: "",
-        label: "Beads Properties Structure (Node Feature Matrix) for Lipid-2",
-      },
-    ]);
+      }));
+      return temp;
+    });
   };
 
   const handleCompositionChange = (id, field, value) => {
-    console.log(id, field, value);
     setCompositions((prevCompositions) => {
       // Create a copy of the previous state
       const newCompositions = { ...prevCompositions };
 
       // Ensure value is correctly formatted (e.g., converting string to number for percentages)
-      const formattedValue = field === "percentage" ? parseFloat(value) : value;
+      let formattedValue = field === "percentage" ? parseFloat(value) : value;
+      if (!formattedValue && field === "percentage") formattedValue = 0;
 
       // Directly update the specified field
       if (newCompositions[`comp${id}`]) {
@@ -123,46 +95,50 @@ function Prediction() {
       // For 'multiple', adjust the other composition's percentage if necessary
       if (type === "multiple" && field === "percentage") {
         const otherCompId = id === 1 ? 2 : 1; // Determine the other composition's id
-        const totalPercentage =
-          formattedValue + newCompositions[`comp${otherCompId}`].percentage;
 
         // If total exceeds 100%, adjust the other composition's percentage
-        if (totalPercentage > 100) {
-          newCompositions[`comp${otherCompId}`].percentage = Math.max(
-            100 - formattedValue,
-            0
-          );
-        }
+        newCompositions[`comp${otherCompId}`].percentage = Math.max(
+          100 - formattedValue,
+          0
+        );
       }
 
       return newCompositions;
     });
   };
 
-  const handleInputChange = (e, key) => {
-    setData({ ...data, [key]: e });
+  const handleInputChange = (e, key) =>
+    setData((prev) => ({ ...prev, [key]: e }));
+
+  const validateInputs = () => {
+    // Adjusting required inputs based on type
+    const requiredInputs = type === "single" ? inputs.slice(0, 2) : inputs;
+
+    // For "single", check only comp1; for "multiple", check both comp1 and comp2
+    let compositionsFilled = true;
+    if (type === "single") {
+      compositionsFilled = !!compositions.comp1.name; // Check only comp1 for "single"
+    } else if (type === "multiple") {
+      compositionsFilled = Object.values(compositions).every(
+        (comp) => comp.name
+      ); // Check both for "multiple"
+    }
+
+    const inputsFilled = requiredInputs.every(
+      (input) => input.file || input.text
+    );
+    const dataFieldsFilled = Object.values(data).every((value) => value !== "");
+
+    if (!compositionsFilled || !inputsFilled || !dataFieldsFilled) {
+      toast.error("Fill all the required fields");
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async () => {
-    // TODO: validate form
-    // if (
-    //   (!adjacencyInput.file && !adjacencyInput.text) ||
-    //   (!nodeFeatureInput.file && !nodeFeatureInput.text) ||
-    //   !compositions.comp1.name ||
-    //   !data[
-    //     "Kappa BW-DCF(Bandwidth Dependent Die-electric Constant Fluctuation)"
-    //   ] ||
-    //   !data["Kappa-RSF"] ||
-    //   !data["Membrane Thickness"] ||
-    //   !data["Number of Lipid Per Layer"] ||
-    //   !data["Number of Water Molecules"] ||
-    //   !data["Pressure"] ||
-    //   !data["Salt (moles per liter)"] ||
-    //   !data["Temperature"]
-    // ) {
-    //   toast.error("Fill all the input fields");
-    //   return;
-    // }
+    if (!validateInputs()) return;
+
     const formData = new FormData();
 
     inputs.forEach((input, index) => {
@@ -178,12 +154,15 @@ function Prediction() {
       formData.append(`${type}Text${lipidNumber}`, input.text);
     });
 
-    // Add other data fields
     formData.append("type", type);
     formData.append("compositions", JSON.stringify(compositions));
     formData.append("data", JSON.stringify(data));
 
     try {
+      for(const [key, value] of formData.entries()) {
+        console.log(key, value)
+      }
+      
       setLoading(true);
       const response = await fetch("http://localhost:8000/test/", {
         method: "POST",
@@ -213,7 +192,10 @@ function Prediction() {
           name="radiogroup"
           size="large"
           defaultValue={type}
-          onChange={(e) => handleTypeChange(e.target.value)}
+          onChange={(e) => {
+            handleTypeChange(e.target.value)
+            setPredictionValue("")
+          }}
           buttonStyle="solid"
         >
           <RadioButton value={"single"}>Single Composition</RadioButton>
@@ -308,6 +290,15 @@ function Prediction() {
                 <span className="text-gray-900 font-bold tracking-wide">
                   {compositions.comp1.name}
                 </span>{" "}
+                {type === "multiple" && (
+                  <>
+                    and
+                    <span className="text-gray-900 font-bold tracking-wide">
+                      {" "}
+                      {compositions.comp2.name}{" "}
+                    </span>
+                  </>
+                )}
                 is:{" "}
               </h1>
               <p className="bg-violet-500 text-white font-bold p-2 px-4 rounded">
@@ -322,18 +313,6 @@ function Prediction() {
 }
 
 /**
- * Returns the initial state for the lipid compositions.
- * Sets up the initial names and percentages for compositions.
- *
- * @returns {Object} The initial composition state object.
- */
-
-const initialCompositionState = () => ({
-  comp1: { name: "", percentage: 100 },
-  comp2: { name: "", percentage: 0 },
-});
-
-/**
  * Determines the state of compositions based on the selected type ('single' or 'multiple').
  * In 'single' mode, it sets comp1 percentage to 100%, and in 'multiple' mode, it sets both to 0%.
  *
@@ -345,38 +324,8 @@ const compositionStateOnTypeChange = (newType) =>
   newType === "single"
     ? { comp1: { name: "", percentage: 100 } }
     : {
-        comp1: { name: "", percentage: 0 },
+        comp1: { name: "", percentage: 100 },
         comp2: { name: "", percentage: 0 },
       };
-
-/**
- * Calculates and returns the updated state for compositions.
- * In 'multiple' mode, it validates the total percentage does not exceed 100%.
- * Returns null if validation fails.
- *
- * @param {Object} compositions - The current compositions state.
- * @param {string} id - The composition identifier being updated.
- * @param {string} field - The field in the composition being updated ('name' or 'percentage').
- * @param {number|string} value - The new value for the field.
- * @param {string} type - The current selected type ('single' or 'multiple').
- * @returns {Object|null} The updated compositions state object or null if validation fails.
- */
-
-const getUpdatedCompositions = (compositions, id, field, value, type) => {
-  if (field === "percentage" && type === "multiple") {
-    const totalPercentage =
-      id === "comp1"
-        ? value + compositions.comp2.percentage
-        : compositions.comp1.percentage + value;
-    if (totalPercentage > 100) {
-      toast.error("Total percentage cannot exceed 100%");
-      return null;
-    }
-  }
-  return {
-    ...compositions,
-    [id]: { ...compositions[id], [field]: value },
-  };
-};
 
 export default Prediction;
