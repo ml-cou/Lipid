@@ -9,18 +9,18 @@ import torch_geometric
 from matplotlib import pyplot as plt
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GATConv
 import torch.nn.functional as F
 import ast
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 
-class GCNPredictor(torch.nn.Module):
-    def __init__(self, input_features, hidden_features):
-        super(GCNPredictor, self).__init__()
-        self.conv1 = GCNConv(input_features, hidden_features)
-        self.conv2 = GCNConv(hidden_features, hidden_features)
-        self.fc = torch.nn.Linear(hidden_features, 1)  # Output one value
+class GATPredictor(torch.nn.Module):
+    def __init__(self, input_features, hidden_features, num_heads):
+        super(GATPredictor, self).__init__()
+        self.conv1 = GATConv(input_features, hidden_features, heads=num_heads)
+        self.conv2 = GATConv(hidden_features * num_heads, hidden_features, heads=num_heads)
+        self.fc = torch.nn.Linear(hidden_features * num_heads, 1)  # Output one value
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
@@ -31,15 +31,12 @@ class GCNPredictor(torch.nn.Module):
         x = self.fc(x)
         return x.squeeze()  # Ensure output is 1D
 
-# Function to convert string representations to Python objects
-
 def safe_ast_literal_eval(s):
     try:
         return ast.literal_eval(s)
     except ValueError:
         return s
 
-# Function to encode string features as numerical values
 def encode_features(features, feature_map):
     encoded_features = []
     for feature in features:
@@ -48,38 +45,31 @@ def encode_features(features, feature_map):
         encoded_features.append(encoded_feature)
     return encoded_features
 
+standard_feature_size = 1
+def process_node_features(features, feature_map):
+    numeric_features = []
+    for feature in features[1:]:  # Skip the first element which is node identifier
+        if isinstance(feature, str):
+            numeric_feature = feature_map.get(feature, len(feature_map))
+            feature_map[feature] = numeric_feature
+        else:
+            numeric_feature = feature
+        numeric_features.append(numeric_feature)
+
+    # Pad the feature vector if it's shorter than the standard size
+    if len(numeric_features) < standard_feature_size:
+        numeric_features += [0] * (standard_feature_size - len(numeric_features))
+
+    return numeric_features[:standard_feature_size]  # Ensure the feature vector is of standard size
+
 def train_model():
-# Load the dataset
+    # Load the dataset
     current_directory = os.path.dirname(__file__)
     file_path = os.path.join(current_directory, "../data/Final_Dataset_for_Model_Train.csv")
     data = pd.read_csv(file_path)
-
-
-
-
-    standard_feature_size = 1  # Set this based on your data analysis
-
-    def process_node_features(features):
-        numeric_features = []
-        for feature in features[1:]:  # Skip the first element which is node identifier
-            if isinstance(feature, str):
-                numeric_feature = feature_map.get(feature, len(feature_map))
-                feature_map[feature] = numeric_feature
-            else:
-                numeric_feature = feature
-            numeric_features.append(numeric_feature)
-
-        # Pad the feature vector if it's shorter than the standard size
-        if len(numeric_features) < standard_feature_size:
-            numeric_features += [0] * (standard_feature_size - len(numeric_features))
-
-        return numeric_features[:standard_feature_size]  # Ensure the feature vector is of standard size
-
-
     feature_map = {}  # Dictionary to map strings to integers for node features
     node_map = {}     # Dictionary to map node identifiers to integers for edges
     unique_nodes = set()
-
 
     def get_unique_nodes(edge_list, node_features_list):
         unique_nodes = set()
@@ -88,7 +78,6 @@ def train_model():
         for feature in node_features_list:
             unique_nodes.update(feature)
         return list(unique_nodes)
-
 
     other_columns = [
         'N Lipids/Layer',
@@ -103,6 +92,7 @@ def train_model():
         # Convert string representations to Python objects
         node_features_list = safe_ast_literal_eval(row['Node Features'])
         edge_list = safe_ast_literal_eval(row['Edge List'])
+
         graph_features = safe_ast_literal_eval(row['Graph-Level Features'])
 
         for r in other_columns:
@@ -113,7 +103,6 @@ def train_model():
             unique_nodes.update(edge)
         for features in node_features_list:
             unique_nodes.add(features[0])  # Assuming first element of each feature list is the node identifier
-
 
         node_map = {node_id: i for i, node_id in enumerate(unique_nodes)}
 
@@ -127,26 +116,22 @@ def train_model():
             node_id = features[0]
             if node_id in node_map:
                 node_idx = node_map[node_id]
-                processed_features = process_node_features(features)
+                processed_features = process_node_features(features, feature_map)
                 node_features_tensor[node_idx] = torch.tensor(processed_features, dtype=torch.float)
 
         # Prepare edge index tensor
-        edge_index_tensor = torch.tensor([[node_map[node] for node in edge] for edge in edge_list], dtype=torch.long).t().contiguous()
+        edge_index_tensor = torch.tensor([[node_map[node] for node in edge] for edge in edge_list],
+                                         dtype=torch.long).t().contiguous()
 
         graph_features_tensor = torch.tensor(graph_features, dtype=torch.float)
 
         y = torch.tensor([row['Kappa (q^-4)']], dtype=torch.float)
-        data_list.append(Data(x=node_features_tensor, edge_index=edge_index_tensor, y=y, graph_features=graph_features_tensor))
-
-
-    # if 'D2B' not in node_map:
-    #     print("'D2B' is not in the node_map. You might need to update your node_map or retrain the model.")
-
+        data_list.append(
+            Data(x=node_features_tensor, edge_index=edge_index_tensor, y=y, graph_features=graph_features_tensor))
 
     # After creating feature_map and node_map during training
-    torch.save(feature_map, os.path.join(current_directory,'../models/feature_map.pth'))
-    torch.save(node_map, os.path.join(current_directory,'../models/node_map.pth'))
-
+    torch.save(feature_map, os.path.join(current_directory, '../models/feature_map.pth'))
+    torch.save(node_map, os.path.join(current_directory, '../models/node_map.pth'))
 
     # Split the data into training and validation sets
     train_data = data_list[:int(0.8 * len(data_list))]
@@ -155,12 +140,12 @@ def train_model():
     train_loader = DataLoader(train_data, batch_size=32, shuffle=True)
     val_loader = DataLoader(val_data, batch_size=32, shuffle=False)
 
-    # Define the GCN model
+    # Define the GAT model
     # Adjust the model instantiation accordingly
 
     # Create model instance, optimizer, and loss function
 
-    model = GCNPredictor(input_features=standard_feature_size, hidden_features=32)
+    model = GATPredictor(input_features=standard_feature_size, hidden_features=32, num_heads=4)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     loss_fn = torch.nn.MSELoss()
@@ -169,8 +154,7 @@ def train_model():
     train_losses = []
     val_losses = []
 
-
-    for epoch in range(700):
+    for epoch in range(100):
         model.train()
         total_train_loss = 0.0
         for data in train_loader:
@@ -199,7 +183,9 @@ def train_model():
     # After your training loop
     # Assuming 'model' is your trained model instance
 
-    torch.save(model.state_dict(), os.path.join(current_directory, '../models/gcn_complete_model.pth'))
+    # Save only the model state dictionary
+    torch.save(model.state_dict(), os.path.join(current_directory, '../models/gat_complete_model.pth'))
+
     # Assume feature_map and node_map are created during training
     loss_df = pd.DataFrame({
         'Train Losses': train_losses,
@@ -249,7 +235,6 @@ def train_model():
 
     # Plotting
 
-
     observations = np.arange(len(actuals))  # Create an array for the x-axis
 
     plt.figure(figsize=(10, 6))
@@ -273,7 +258,7 @@ def train_model():
         'Mean Absolute Error': f'{mae:.4f}',
         'R-squared': f'{r2:.4f}',
         "loss": {
-            'graph':plot_data1,
+            'graph': plot_data1,
             'table': loss_df.to_json(orient='records')
         },
         'actualvspred': {

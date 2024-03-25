@@ -8,7 +8,10 @@ from matplotlib import pyplot as plt
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 import ast
+import matplotlib
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+matplotlib.use('Agg')
+plt.switch_backend('agg')
 
 
 import torch
@@ -169,7 +172,7 @@ def train_model():
     train_losses = []
     val_losses = []
 
-    for epoch in range(1300):
+    for epoch in range(100):
         model.train()
         total_train_loss = 0.0
         for data in train_loader:
