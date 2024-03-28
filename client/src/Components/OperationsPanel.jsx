@@ -58,7 +58,7 @@ const OperationsPanel = ({ setOperationID, operationID }) => {
       <p className="font-semibold mb-4 text-2xl text-gray-800/80 text-center underline">
         Operations
       </p>
-      <div className="text-center">
+      {/* <div className="text-center">
         <button
           className={`${
             !loading && "hover:text-gray-100 hover:bg-blue-500/90"
@@ -72,7 +72,7 @@ const OperationsPanel = ({ setOperationID, operationID }) => {
             <CircularProgress color="inherit" size={"25px"} />
           )}
         </button>
-      </div>
+      </div> */}
       <div className={`mt-3 ${loading && "pointer-events-none"}`}>
         {data && !loading && (
           <TreeView
