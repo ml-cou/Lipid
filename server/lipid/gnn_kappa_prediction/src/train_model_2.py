@@ -147,7 +147,7 @@ def train_model():
             pad_tensor = torch.full((result_tensor.size(0), padding_needed), 0, dtype=result_tensor.dtype)
             result_tensor = torch.cat([result_tensor, pad_tensor], dim=-1)
 
-        print(result_tensor.shape)
+        # print(result_tensor.shape)
 
         data_list.append(Data(x=result_tensor, edge_index=edge_index_tensor, y=y))
 
@@ -239,6 +239,7 @@ def train_model():
     plt.ylabel('Loss')
     plt.legend()
     plt.title('Train vs Test Loss')
+    plt.show()
 
     buffer = BytesIO()
     plt.savefig(buffer, format='png')
@@ -256,10 +257,13 @@ def train_model():
     plt.figure(figsize=(10, 6))
     plt.scatter(observations, actuals, color='blue', alpha=0.5, label='Actual')
     plt.scatter(observations, predictions, color='red', alpha=0.5, label='Predicted')
+    plt.plot(actuals, actuals, 'g--', label='Perfect Predictions')  # Adding a line for perfect predictions
     plt.xlabel('Observations')
     plt.ylabel('Values')  # Replace with the name of the variable you are predicting
     plt.title('Actual and Predicted Values')
     plt.legend()
+
+    plt.show()
 
     df_summary = pd.DataFrame({"Actual Values": actuals, "Predicted Values": predictions})
 
