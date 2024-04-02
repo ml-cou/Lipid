@@ -25,11 +25,13 @@ from lipid.views import get_data
 
 from lipid.views import evaluation
 
+from lipid.views import get_model_comparison
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('prediction/',prediction),
     path('edge_pred/',pred_edge),
     path('test/', get_data),
-    path('eval/',evaluation)
-
+    path('eval/',evaluation),
+    path('model_comp/',get_model_comparison)
 ]
