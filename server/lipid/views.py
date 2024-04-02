@@ -5,10 +5,13 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
 import matplotlib.pyplot as plt
 from django.http import JsonResponse
+
+from .gnn_kappa_prediction.src.model_graph import gen_comparison
 from .gnn_kappa_prediction.src.predict_model_2 import predict_model as pm
 from .gnn_kappa_prediction.src.train_model_2 import train_model
 from .static.Predict_Value.Predict_value import predict_value
 from .static.gnn_molecule_edge_only import edge_pred
+
 
 plt.switch_backend('agg')
 
@@ -18,6 +21,11 @@ plt.switch_backend('agg')
 @api_view(['GET','POST'])
 def get_data(request):
     return JsonResponse(pm(request))
+
+@api_view(['GET','POST'])
+def get_model_comparison(request):
+    graphs=gen_comparison()
+    return JsonResponse(graphs)
 
 @api_view(['GET','POST'])
 def create_model(req):
