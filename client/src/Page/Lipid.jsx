@@ -1,11 +1,12 @@
 import { ArrowRight } from "@mui/icons-material";
 import { CircularProgress } from "@mui/material";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import EvaluationGraphTable from "../Components/EvaluationGraphTable.jsx";
 import Header from "../Components/Header";
+import ModelComparison from "../Components/ModelComparison.jsx";
 import MoleculeStructure from "../Components/MoleculeStructure.jsx";
 import OperationsPanel from "../Components/OperationsPanel";
 import Prediction from "../Components/Prediction.jsx";
@@ -16,11 +17,18 @@ function Lipid() {
   const [collapse, setCollapse] = useState(false);
   const [operationID, setOperationID] = useState("0");
   const { loading, data } = useSelector((state) => state.evaluation);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (data) {
+      localStorage.setItem("data", JSON.stringify(data));
+    }
+  }, [data]);
 
   return (
     <div className="h-screen  relative overflow-hidden">
       <Header />
-      
+
       <div className="flex h-full w-full">
         <div
           className={`relative border-r-2 min-w-[250px] shadow-xl p-4 bg-[whitesmoke] flex flex-col ${
@@ -88,6 +96,7 @@ function Lipid() {
                     operationID === "actualvspred") && (
                     <EvaluationGraphTable operationID={operationID} />
                   )}
+                  {operationID === "compare" && <ModelComparison />}
                 </>
               )}
             </div>

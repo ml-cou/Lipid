@@ -1,12 +1,11 @@
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ArrowRightIcon from "@mui/icons-material/ArrowRight";
-import { CircularProgress } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { TreeView } from "@mui/x-tree-view";
 import { TreeItem, treeItemClasses } from "@mui/x-tree-view/TreeItem";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { evaluateModel, setEvalData } from "../Slices/EvaluationSlice";
-import { useEffect } from "react";
 
 const StyledTreeItemRoot = styled(TreeItem)(({ theme }) => ({
   color: theme.palette.text.secondary,
@@ -36,14 +35,7 @@ const OperationsPanel = ({ setOperationID, operationID }) => {
   const { data, loading } = useSelector((state) => state.evaluation);
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    let dd = localStorage.getItem("data");
-
-    if (dd) {
-      dd = JSON.parse(dd);
-      dispatch(setEvalData(dd));
-    }
-  }, []);
+  
 
   const handleNodeSelect = async (b) => {
     setOperationID(b);
@@ -92,6 +84,7 @@ const OperationsPanel = ({ setOperationID, operationID }) => {
               />
             </StyledTreeItemRoot>
             <StyledTreeItemRoot nodeId="structure" label="Structure Analysis" />
+            <StyledTreeItemRoot nodeId="compare" label="Model Comparison" />
           </TreeView>
         )}
       </div>
