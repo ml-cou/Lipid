@@ -2,6 +2,7 @@ import base64
 import os
 from io import BytesIO
 
+import matplotlib
 import pandas as pd
 from matplotlib import pyplot as plt
 from torch_geometric.data import Data
@@ -10,10 +11,11 @@ import ast
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import torch
 import torch.optim as optim
-from gatConv import GATPredictor
-from gcnConv import GCNPredictor
-from sageConv import SAGEPredictor
-
+from .gatConv import GATPredictor
+from .gcnConv import GCNPredictor
+from .sageConv import SAGEPredictor
+matplotlib.use('Agg')
+plt.switch_backend('agg')
 
 def safe_ast_literal_eval(s):
     try:
