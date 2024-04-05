@@ -43,7 +43,7 @@ To clone the repository and start working on the project, follow these steps:
 
 3. **Start the Django development server:**
    ```sh
-   python manage.py runserver
+   python manage.py runserver 8000
    ```
 
 The Django server will be running on [http://localhost:8000](http://localhost:8000).
@@ -61,6 +61,17 @@ The Django server will be running on [http://localhost:8000](http://localhost:80
    ```
 
 3. **Start the React development server with:**
+   
+   On Unix-based systems (Linux/macOS), use:
    ```sh
-   npm run dev
+   PORT=8002 npm run dev
    ```
+   On Windows (cmd.exe), use:
+   ```cmd
+   set PORT=8002 && npm run dev
+   ```
+   On Windows (PowerShell), use:
+   ```powershell
+   $env:PORT=8002; npm run dev
+   ```
+   
